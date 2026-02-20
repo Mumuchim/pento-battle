@@ -20,6 +20,9 @@ public class PlacementController : MonoBehaviour
     private const int SelectedSortingOrder = 100;
     private const int NormalHandSortingOrder = 10;
 
+    // ✅ NEW: placed pieces should not tie with board (often 0)
+    private const int PlacedSortingOrder = 20;
+
     void Awake()
     {
         if (cam == null) cam = Camera.main;
@@ -87,8 +90,13 @@ public class PlacementController : MonoBehaviour
                     DisablePieceColliders(selectedPiece);
                     ResetTint(selectedPiece);
 
-                    // placed pieces can go back to normal sorting
-                    SetSortingOrder(selectedPiece, 0);
+                    // ✅ FIX: avoid tie with board sorting (random draw order)
+                    SetSortingOrder(selectedPiece, PlacedSortingOrder);
+
+                    // ✅ (extra safe) force Z = 0 so it doesn't drift behind
+                    var p = selectedPiece.transform.position;
+                    p.z = 0f;
+                    selectedPiece.transform.position = p;
 
                     selectedPiece = null;
                     isDragging = false;
