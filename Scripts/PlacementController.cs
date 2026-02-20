@@ -19,8 +19,6 @@ public class PlacementController : MonoBehaviour
 
     private const int SelectedSortingOrder = 100;
     private const int NormalHandSortingOrder = 10;
-
-    // ✅ NEW: placed pieces should not tie with board (often 0)
     private const int PlacedSortingOrder = 20;
 
     void Awake()
@@ -71,6 +69,9 @@ public class PlacementController : MonoBehaviour
 
             // IMPORTANT: Rebuild recreates renderers, so keep sorting every frame while dragging
             SetSortingOrder(selectedPiece, SelectedSortingOrder);
+
+            // ✅ keep scale matching board (prevents “almost fits”)
+            ApplyBoardScale(selectedPiece);
         }
 
         // release to place
@@ -90,10 +91,10 @@ public class PlacementController : MonoBehaviour
                     DisablePieceColliders(selectedPiece);
                     ResetTint(selectedPiece);
 
-                    // ✅ FIX: avoid tie with board sorting (random draw order)
                     SetSortingOrder(selectedPiece, PlacedSortingOrder);
+                    ApplyBoardScale(selectedPiece);
 
-                    // ✅ (extra safe) force Z = 0 so it doesn't drift behind
+                    // keep z clean
                     var p = selectedPiece.transform.position;
                     p.z = 0f;
                     selectedPiece.transform.position = p;
@@ -126,6 +127,10 @@ public class PlacementController : MonoBehaviour
         }
 
         selectedPiece = pieceUnderMouse;
+
+        // ✅ ensure piece matches board visual scale immediately
+        ApplyBoardScale(selectedPiece);
+
         originalPos = selectedPiece.transform.position;
 
         Vector3 mouseWorld = GetMouseWorld3D();
@@ -191,16 +196,16 @@ public class PlacementController : MonoBehaviour
 
         selectedPiece.RotateCW(); // this Rebuild() recreates renderers
 
-        // keep same anchor/position
         if (onBoard)
             selectedPiece.transform.position = board.GridToWorld(anchor);
         else
             selectedPiece.transform.position = beforeWorld;
 
-        // ✅ keep visible after rebuild
         SetSortingOrder(selectedPiece, SelectedSortingOrder);
 
-        // re-tint immediately after rebuild
+        // ✅ rebuild can reset transforms; re-apply scale
+        ApplyBoardScale(selectedPiece);
+
         bool canPlace = CanPlaceHere(out _);
         TintSelected(canPlace ? validTint : invalidTint);
     }
@@ -219,8 +224,10 @@ public class PlacementController : MonoBehaviour
         else
             selectedPiece.transform.position = beforeWorld;
 
-        // ✅ keep visible after rebuild
         SetSortingOrder(selectedPiece, SelectedSortingOrder);
+
+        // ✅ rebuild can reset transforms; re-apply scale
+        ApplyBoardScale(selectedPiece);
 
         bool canPlace = CanPlaceHere(out _);
         TintSelected(canPlace ? validTint : invalidTint);
@@ -269,6 +276,14 @@ public class PlacementController : MonoBehaviour
     // ----------------------------
     // Helpers
     // ----------------------------
+    void ApplyBoardScale(PentominoPiece piece)
+    {
+        if (piece == null || board == null) return;
+
+        // assumes BoardManager has a public float "cellSize" (your inspector shows Cell Size 0.95)
+        piece.transform.localScale = Vector3.one * board.cellSize;
+    }
+
     void ReturnToOriginal()
     {
         if (selectedPiece == null) return;
@@ -276,6 +291,8 @@ public class PlacementController : MonoBehaviour
         selectedPiece.transform.position = originalPos;
         ResetTint(selectedPiece);
         SetSortingOrder(selectedPiece, NormalHandSortingOrder);
+
+        ApplyBoardScale(selectedPiece);
 
         isDragging = false;
     }
@@ -293,6 +310,8 @@ public class PlacementController : MonoBehaviour
 
         ResetTint(selectedPiece);
         SetSortingOrder(selectedPiece, NormalHandSortingOrder);
+
+        ApplyBoardScale(selectedPiece);
 
         selectedPiece = null;
         isDragging = false;
